@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next muse use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="Hexo, NexT" />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="当提到防止SQL注入的办法时，脑海中总是会想到使用PDO绑定参数的办法或者使用mysql_real_eascape_string()来处理（虽然古老的 mysql_XXX 这类的函数已经不建议使用）。但是PDO是如何防止注入的呢？ 在手册中，有这样一段：  Prepared statements and stored proceduresMany of the more mature databa">
+<meta property="og:type" content="article">
+<meta property="og:title" content="pdo防止注入的原理">
+<meta property="og:url" content="http://lk1ngaa7.github.io/2016/01/25/pdo-with-mysql/index.html">
+<meta property="og:site_name" content="Blog of liukai93">
+<meta property="og:description" content="当提到防止SQL注入的办法时，脑海中总是会想到使用PDO绑定参数的办法或者使用mysql_real_eascape_string()来处理（虽然古老的 mysql_XXX 这类的函数已经不建议使用）。但是PDO是如何防止注入的呢？ 在手册中，有这样一段：  Prepared statements and stored proceduresMany of the more mature databa">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:image" content="http://kingliu-blog.qiniudn.com/images/sql-pdo.png">
+<meta property="og:image" content="http://kingliu-blog.qiniudn.com/images/sql-val.png">
+<meta property="og:updated_time" content="2018-02-25T10:04:22.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="pdo防止注入的原理">
+<meta name="twitter:description" content="当提到防止SQL注入的办法时，脑海中总是会想到使用PDO绑定参数的办法或者使用mysql_real_eascape_string()来处理（虽然古老的 mysql_XXX 这类的函数已经不建议使用）。但是PDO是如何防止注入的呢？ 在手册中，有这样一段：  Prepared statements and stored proceduresMany of the more mature databa">
+<meta name="twitter:image" content="http://kingliu-blog.qiniudn.com/images/sql-pdo.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Muse',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://lk1ngaa7.github.io/2016/01/25/pdo-with-mysql/"/>
+
+
+
+
+
+  <title>pdo防止注入的原理 | Blog of liukai93</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">Blog of liukai93</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://lk1ngaa7.github.io/2016/01/25/pdo-with-mysql/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="liukai93">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Blog of liukai93">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">pdo防止注入的原理</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2016-01-25T16:41:47+08:00">
+                2016-01-25
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>当提到防止SQL注入的办法时，脑海中总是会想到使用PDO绑定参数的办法或者使用mysql_real_eascape_string()来处理（虽然古老的 mysql_XXX 这类的函数已经不建议使用）。但是PDO是如何防止注入的呢？</p>
+<p>在手册中，有这样一段：</p>
+<blockquote>
+<h1 id="Prepared-statements-and-stored-procedures"><a href="#Prepared-statements-and-stored-procedures" class="headerlink" title="Prepared statements and stored procedures"></a>Prepared statements and stored procedures</h1><p><strong>Many of the more mature databases support the concept of prepared statements. What are they? They can be thought of as a kind of compiled template for the SQL that an application wants to run, that can be customized using variable parameters. Prepared statements offer two major benefits:</strong></p>
+<ul>
+<li><strong>The query only needs to be parsed (or prepared) once, but can be executed multiple times with the same or different parameters. When the query is prepared, the database will analyze, compile and optimize it’s plan for executing the query. For complex queries this process can take up enough time that it will noticeably slow down an application if there is a need to repeat the same query many times with different parameters. By using a prepared statement the application avoids repeating the analyze/compile/optimize cycle. This means that prepared statements use fewer resources and thus run faster.</strong></li>
+<li><strong>The parameters to prepared statements don’t need to be quoted; the driver automatically handles this. If an application exclusively uses prepared statements, the developer can be sure that no SQL injection will occur (however, if other portions of the query are being built up with unescaped input, SQL injection is still possible).</strong></li>
+</ul>
+<p><strong>Prepared statements are so useful that they are the only feature that PDO will emulate for drivers that don’t support them. This ensures that an application will be able to use the same data access paradigm regardless of the capabilities of the database.</strong></p>
+</blockquote>
+<p>大概的翻译是：<br><em>很多更成熟的数据库都支持预处理语句的概念。这些是什么？它可以被认为是作为一种通过编译SQL语句模板来运行sql语句的机制。预处理语句可以带来两大好处：</em></p>
+<ul>
+<li><ul>
+<li><em>查询只需要被解析（或编译）一次，但可以执行多次通过相同或不同的参数。当查询处理好后，数据库将分析，编译和优化它的计划来执行查询。对于复杂的查询这个过程可能需要足够的时间，这将显著地使得应用程序变慢，如果有必要，可以多次使用不同的参数 重复相同的查询。通过使用处理好的语句的应用程序避免重复 【分析/编译/优化】 周期。这意味着，预处理语句使用更少的资源，而且运行得更快。</em></li>
+<li>绑定的参数不需要使用引号;该驱动程序会自动处理。如果应用程序使用预处理语句，开发人员可以确保不会发生SQL注入（但是，如果查询的其他部分使用了未转义的输入，SQL注入仍然是可能的）。*</li>
+</ul>
+</li>
+</ul>
+<p><em>预处理语句非常有用，PDO可以使用一种本地模拟的办法来为没有预处理功能的数据库系统提供这个功能。这保证了一个应用可以使用统一的访问方式来访问数据库。</em></p>
+<p>这里讲了使用PDO可以带来两个很好的效果，预编译带来查询速度的提升，变量的绑定可以预防 sql injection，其实PDO的预防sql注入的机制也是类似于使用 mysql_real_escape_string 进行转义，PDO 有两种转义的机制，第一种是本地转义，这种转义的方式是使用单字节字符集（PHP &lt; 5.3.6）来转义的（<a href="http://blog.csdn.net/leixiaohua1020/article/details/12753723" target="_blank" rel="noopener">单字节与多字节</a>），来对输入进行转义，但是这种转义方式有一些<a href="https://github.com/80vul/phpcodz/blob/master/research/pch-018.md" target="_blank" rel="noopener">隐患</a>。隐患主要是：在PHP版本小于5.3.6的时候，本地转义只能转换单字节的字符集，大于 5.3.6 的版本会根据 PDO 连接中指定的 charset 来转义。PHP官方手册这里有<a href="http://php.net/manual/zh/ref.pdo-mysql.connection.php" target="_blank" rel="noopener">说明</a>：</p>
+<blockquote>
+<p><strong>Warning</strong></p>
+<p>The method in the below example can only be used with character sets that share the same lower 7 bit representation as ASCII, such as ISO-8859-1 and UTF-8. Users using character sets that have different representations (such as UTF-16 or Big5) <em>must</em>use the <em>charset</em> option provided in PHP 5.3.6 and later versions.</p>
+</blockquote>
+<p>所以就是说，<strong>不同的版本的PDO 在本地转义的行为上是有区别的。</strong></p>
+<p>第二种方式是PDO，首先将 sql 语句模板发送给Mysql Server，随后将绑定的字符变量再发送给Mysql server，这里的转义是在Mysql Server做的，它是根据你在连接PDO的时候，在charset里指定的编码格式来转换的。这样的转义方式更健全，同时还可以在又多次重复查询的业务场景下，通过复用模板，来提高程序的性能。如果要设置Mysql Server  来转义的话，就要首先执行：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$pdo-&gt;setAttribute(PDO::ATTR_EMULATE_PREPARES, false);</span><br></pre></td></tr></table></figure>
+<p>下面是通过 wireshark 抓到的数据包，来具体显示PDO 查询的过程：<br><a href="http://kingliu-blog.qiniudn.com/images/sql-pdo.png" target="_blank" rel="noopener"><img src="http://kingliu-blog.qiniudn.com/images/sql-pdo.png" alt="img"></a><br>绑定的变量：<br><a href="http://kingliu-blog.qiniudn.com/images/sql-val.png" target="_blank" rel="noopener"><img src="http://kingliu-blog.qiniudn.com/images/sql-val.png" alt="img"></a><br>如果不执行  $pdo-&gt;setAttribute(PDO::ATTR_EMULATE_PREPARES, false);  PDO 只是会将插入的参数使用本地转义之后和SQL模板拼装起来，然后一起发送给Mysql Server。这实际上与使用mysql_real_escape_string()过滤，然后拼装这种做法并没有什么不同。</p>
+<p> 要对数据库的安全做出更加全面的考量，以下两种方式任选其一：</p>
+<p>A. 通过添加(php 5.3.6以前版本)：$pdo-&gt;setAttribute(PDO::ATTR_EMULATE_PREPARES, false);<br>B.  升级到php 5.3.6 (不用设置PDO::ATTR_EMULATE_PREPARES也可以)<br>为了程序移植性和统一安全性，建议使用 $pdo-&gt;setAttribute(PDO::ATTR_EMULATE_PREPARES, false) 方法。</p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2016/01/11/websocket-with-php/" rel="next" title="websocket解析和 php 实现">
+                <i class="fa fa-chevron-left"></i> websocket解析和 php 实现
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2017/02/11/hijack-on-network/" rel="prev" title="链路劫持小记">
+                链路劫持小记 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">liukai93</p>
+              <p class="site-description motion-element" itemprop="description"></p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">3</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                
+                  <span class="site-state-item-count">2</span>
+                  <span class="site-state-item-name">标签</span>
+                
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Prepared-statements-and-stored-procedures"><span class="nav-number">1.</span> <span class="nav-text">Prepared statements and stored procedures</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2018</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">liukai93</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Muse</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
