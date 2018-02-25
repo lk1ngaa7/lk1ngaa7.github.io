@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next muse use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="Hexo, NexT" />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="将一个字符串插入到另外一个字符串中间，是php中常常出现的一个操作，具体的实现方案也有替换和直接插入两种，涉及到的相关函数也不少，下面就是我在一个实际工作当中处理字符串插入的效率的调研。 场景：在一个 1MB左右的文本文件(content)中的 “hello” 前插入一个10个字节大小的字符串(string)。 采取的方案：（机器性能不同，用相对的比较方式对比性能）   编号 方式 性能(此处是相">
+<meta property="og:type" content="article">
+<meta property="og:title" content="php-字符串搜索函数调研">
+<meta property="og:url" content="http://lk1ngaa7.github.io/2016/01/06/php-strsearch-function-investigation/index.html">
+<meta property="og:site_name" content="Space of liukai93">
+<meta property="og:description" content="将一个字符串插入到另外一个字符串中间，是php中常常出现的一个操作，具体的实现方案也有替换和直接插入两种，涉及到的相关函数也不少，下面就是我在一个实际工作当中处理字符串插入的效率的调研。 场景：在一个 1MB左右的文本文件(content)中的 “hello” 前插入一个10个字节大小的字符串(string)。 采取的方案：（机器性能不同，用相对的比较方式对比性能）   编号 方式 性能(此处是相">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:updated_time" content="2018-02-25T13:36:24.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="php-字符串搜索函数调研">
+<meta name="twitter:description" content="将一个字符串插入到另外一个字符串中间，是php中常常出现的一个操作，具体的实现方案也有替换和直接插入两种，涉及到的相关函数也不少，下面就是我在一个实际工作当中处理字符串插入的效率的调研。 场景：在一个 1MB左右的文本文件(content)中的 “hello” 前插入一个10个字节大小的字符串(string)。 采取的方案：（机器性能不同，用相对的比较方式对比性能）   编号 方式 性能(此处是相">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Muse',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://lk1ngaa7.github.io/2016/01/06/php-strsearch-function-investigation/"/>
+
+
+
+
+
+  <title>php-字符串搜索函数调研 | Space of liukai93</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">Space of liukai93</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://lk1ngaa7.github.io/2016/01/06/php-strsearch-function-investigation/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="liukai93">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Space of liukai93">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">php-字符串搜索函数调研</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2016-01-06T19:08:33+08:00">
+                2016-01-06
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>将一个字符串插入到另外一个字符串中间，是php中常常出现的一个操作，具体的实现方案也有替换和直接插入两种，涉及到的相关函数也不少，下面就是我在一个实际工作当中处理字符串插入的效率的调研。</p>
+<h3 id="场景："><a href="#场景：" class="headerlink" title="场景："></a>场景：</h3><p>在一个 1MB左右的文本文件(content)中的 “hello” 前插入一个10个字节大小的字符串(string)。</p>
+<h3 id="采取的方案：（机器性能不同，用相对的比较方式对比性能）"><a href="#采取的方案：（机器性能不同，用相对的比较方式对比性能）" class="headerlink" title="采取的方案：（机器性能不同，用相对的比较方式对比性能）"></a>采取的方案：（机器性能不同，用相对的比较方式对比性能）</h3><table>
+<thead>
+<tr>
+<th>编号</th>
+<th>方式</th>
+<th>性能(此处是相对值，仅表示各函数的相对速度大小)</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A</td>
+<td>【替换】str_replace(‘#hello#’,$string,$content)</td>
+<td>3</td>
+<td>备注</td>
+</tr>
+<tr>
+<td>B</td>
+<td>【替换】strtr($content,array(”=&gt;$script));</td>
+<td>42</td>
+<td>备注</td>
+</tr>
+<tr>
+<td>C</td>
+<td>【正则替换】preg_replace(‘##hello##’,$script,$content);</td>
+<td>4.4</td>
+<td>备注</td>
+</tr>
+<tr>
+<td>D</td>
+<td>【Substr_replace +strops 插入】substr_replace($content,$script,strpos($content,”),0)</td>
+<td>1</td>
+<td>备注</td>
+</tr>
+</tbody>
+</table>
+<h3 id="A-方案-str-replace-函数"><a href="#A-方案-str-replace-函数" class="headerlink" title="A 方案 str_replace() 函数"></a>A 方案 str_replace() 函数</h3><p>函数签名：</p>
+<blockquote>
+<p><a href="http://php.net/manual/en/language.pseudo-types.php#language.types.mixed" target="_blank" rel="noopener">mixed</a> <strong>str_replace</strong> ( <a href="http://php.net/manual/en/language.pseudo-types.php#language.types.mixed" target="_blank" rel="noopener">mixed</a> <code>$search</code> , <a href="http://php.net/manual/en/language.pseudo-types.php#language.types.mixed" target="_blank" rel="noopener">mixed</a> <code>$replace</code> , <a href="http://php.net/manual/en/language.pseudo-types.php#language.types.mixed" target="_blank" rel="noopener">mixed</a> <code>$subject</code> [, int <code>&amp;$count</code> ] )</p>
+<p>参数<br>如果 search 和 replace 为数组，那么 str_replace() 将对 subject 做二者的映射替换。如果 replace 的值的个数少于 search 的个数，多余的替换将使用空字符串来进行。如果 search 是一个数组而 replace 是一个字符串，那么 search 中每个元素的替换将始终使用这个字符串。该转换不会改变大小写。</p>
+<p>如果 search 和 replace 都是数组，它们的值将会被依次处理。</p>
+<p>search<br>查找的目标值，也就是 needle。一个数组可以指定多个目标。<br>replace<br>search 的替换值。一个数组可以被用来指定多重替换。<br>subject<br>执行替换的数组或者字符串。也就是 haystack。</p>
+<p>如果 subject 是一个数组，替换操作将遍历整个 subject，返回值也将是一个数组。<br>count<br>如果被指定，它的值将被设置为替换发生的次数。<br>返回值 ¶<br>该函数返回替换后的数组或者字符串。</p>
+</blockquote>
+<p>输入的类型可以是字符串或者数组，先对字符串进行分析</p>
+<p>情况1．输入的 search 和 replace 均为字符串</p>
+<ol>
+<li>替换的过程首先要查找 search ，在一个字符串中查找另外一个字符串，就变成了经典的 ‘find needls in haystack’ 问题了。<br>在源码中，调用情况是 str_replace-&gt;php_str_to_str_ex[字符串替换]-&gt;zend_memstr php_str_to_str_ex在 ext/standerd/string.c 的<a href="http://lxr.php.net/xref/PHP_5_3/ext/standard/string.c#php_str_to_str_ex" target="_blank" rel="noopener">php_str_to_str_ex</a> 顾名思义，他就是主要负责处理字符串替换，而 zend_memstr 主要是查找 needles</li>
+</ol>
+<p>zend_memstr 源码：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">static</span> <span class="keyword">inline</span> <span class="keyword">char</span> *</span><br><span class="line">zend_memnstr(<span class="keyword">char</span> *haystack, <span class="keyword">char</span> *needle, <span class="keyword">int</span> needle_len, <span class="keyword">char</span> *end)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">char</span> *p = haystack;</span><br><span class="line">    <span class="keyword">char</span> ne = needle[needle_len<span class="number">-1</span>];</span><br><span class="line">     </span><br><span class="line">    <span class="keyword">if</span> (needle_len == <span class="number">1</span>) &#123;</span><br><span class="line">        <span class="keyword">return</span> (<span class="keyword">char</span> *)<span class="built_in">memchr</span>(p, *needle, (end-p));</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (needle_len &gt; end-haystack) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">NULL</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    end -= needle_len;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">while</span> (p &lt;= end) &#123;</span><br><span class="line">      <span class="comment">// 如果在 p 指向的前(end - p +1)个空间查找到 needle 的首字符，便比较needle的最后一个字符和 p 当前指向的位置 + needle_len 个字符;</span></span><br><span class="line">      <span class="comment">// 这个算法在 needle的第一个字符不会密集出现在 haystack 中时，会比较高效，memchr 会带来较大的 移动步长，相比于 KMP，Horspol 算法，简单，易懂</span></span><br><span class="line">      <span class="keyword">if</span> ((p = (<span class="keyword">char</span> *)<span class="built_in">memchr</span>(p, *needle, (end-p+<span class="number">1</span>))) &amp;&amp; ne == p[needle_len<span class="number">-1</span>]) &#123;</span><br><span class="line">            <span class="keyword">if</span> (!<span class="built_in">memcmp</span>(needle, p, needle_len<span class="number">-1</span>)) &#123;</span><br><span class="line">                <span class="keyword">return</span> p;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (p == <span class="literal">NULL</span>) &#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">NULL</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        p++;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="literal">NULL</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在使用 zend_memstr 查找到 search 的内存地址之后，php_str_to_str_ex 就会使用memcpy ，用 to 来替换 from。</p>
+<p>【值得注意的是，在php_str_to_str_ex 中，会一直查找 subject 中的 search ，知道把他们全部替换为 replace】也就是说，这个过程在发生一次之后不会退出，直到循环，将所有 content 里的 to 替换成 from 才会退出。</p>
+<p>当 str_replace 输入为数组时，使用的算法和 输入为 string 是一样的，只不过相当于循环的处理输入的数组，将他们单个取出，像对待字符串一样去处理。</p>
+<h3 id="方案B-strtr-函数"><a href="#方案B-strtr-函数" class="headerlink" title="方案B strtr() 函数"></a>方案B strtr() 函数</h3><blockquote>
+<h3 id="说明-¶"><a href="#说明-¶" class="headerlink" title="说明 ¶"></a>说明<a href="http://php.net/manual/zh/function.strtr.php#refsect1-function.strtr-description" target="_blank" rel="noopener"> ¶</a></h3><p>string <strong>strtr</strong> ( string <code>$str</code> , string <code>$from</code> , string <code>$to</code> )</p>
+<p>string <strong>strtr</strong> ( string <code>$str</code> , array <code>$replace_pairs</code> )</p>
+<p>该函数返回 <code>str</code> 的一个副本，并将在 <code>from</code> 中指定的字符转换为 <code>to</code> 中相应的字符。 比如， <em>$from[$n]</em>中每次的出现都会被替换为 <em>$to[$n]</em>，其中 <em>$n</em> 是两个参数都有效的位移(offset)。</p>
+<p>如果 <code>from</code> 与 <code>to</code> 长度不相等，那么多余的字符部分将被忽略。 <code>str</code> 的长度将会和返回的值一样。</p>
+<p>参数<a href="http://php.net/manual/zh/function.strtr.php#refsect1-function.strtr-parameters" target="_blank" rel="noopener"> ¶</a></p>
+</blockquote>
+<blockquote>
+<ul>
+<li><p><code>str</code></p>
+<p>待转换的字符串</p>
+</li>
+<li><p><code>from</code></p>
+<p>字符串中与将要被转换的目的字符 <code>to</code> 相对应的源字符</p>
+</li>
+<li><p><code>to</code></p>
+<p>字符串中与将要被转换的字符 <code>from</code> 相对应的目的字符</p>
+</li>
+<li><p><code>replace_pairs</code></p>
+<p>参数 <code>replace_pairs</code> 可以用来取代 <code>to</code> 和 <code>from</code> 参数，因为它是以 <em>array(‘from’ =&gt; ‘to’, …)</em> 格式出现的数组。</p>
+</li>
+</ul>
+<h3 id="返回值-¶"><a href="#返回值-¶" class="headerlink" title="返回值 ¶"></a>返回值<a href="http://php.net/manual/zh/function.strtr.php#refsect1-function.strtr-returnvalues" target="_blank" rel="noopener"> ¶</a></h3><p>返回转换后的字符串。</p>
+<p>如果 <code>replace_pairs</code> 中包含一个空字符串（<em>“”</em>）键，那么将返回 <strong>FALSE</strong>。 If the <code>str</code> is not a scalar then it is not typecasted into a string, instead a warning is raised and <strong>NULL</strong>is returned.</p>
+</blockquote>
+<p>strtr 有两种输入情况，源码中也是将它分成了两个子过程来处理：</p>
+<p>输入为字符串：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">PHPAPI <span class="keyword">char</span> *<span class="title">php_strtr</span><span class="params">(<span class="keyword">char</span> *str, <span class="keyword">int</span> len, <span class="keyword">char</span> *str_from, <span class="keyword">char</span> *str_to, <span class="keyword">int</span> trlen)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">int</span> i;</span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">char</span> xlat[<span class="number">256</span>];</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> ((trlen &lt; <span class="number">1</span>) || (len &lt; <span class="number">1</span>)) &#123;</span><br><span class="line">        <span class="keyword">return</span> str;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 一个 256 大小的数组,代表 ascll 码</span></span><br><span class="line">    <span class="keyword">for</span> (i = <span class="number">0</span>; i &lt; <span class="number">256</span>; xlat[i] = i, i++);</span><br><span class="line">    <span class="comment">// 用 to 来替换指定的from字符的 ascll</span></span><br><span class="line">    <span class="keyword">for</span> (i = <span class="number">0</span>; i &lt; trlen; i++) &#123;</span><br><span class="line">        xlat[(<span class="keyword">unsigned</span> <span class="keyword">char</span>) str_from[i]] = str_to[i];</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 重新赋值</span></span><br><span class="line">    <span class="keyword">for</span> (i = <span class="number">0</span>; i &lt; len; i++) &#123;</span><br><span class="line">        str[i] = xlat[(<span class="keyword">unsigned</span> <span class="keyword">char</span>) str[i]];</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> str;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>输入为数组：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* &#123;&#123;&#123; php_strtr_array</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">php_strtr_array</span><span class="params">(zval *return_value, <span class="keyword">char</span> *str, <span class="keyword">int</span> slen, HashTable *hash)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    zval **entry;</span><br><span class="line">    <span class="keyword">char</span>  *string_key;</span><br><span class="line">    uint   string_key_len;</span><br><span class="line">    zval **trans;</span><br><span class="line">    zval   ctmp;</span><br><span class="line">    ulong num_key;</span><br><span class="line">    <span class="keyword">int</span> minlen = <span class="number">128</span>*<span class="number">1024</span>;</span><br><span class="line">    <span class="keyword">int</span> maxlen = <span class="number">0</span>, pos, len, found;</span><br><span class="line">    <span class="keyword">char</span> *key;</span><br><span class="line">    HashPosition hpos;</span><br><span class="line">    smart_str result = &#123;<span class="number">0</span>&#125;;</span><br><span class="line">    HashTable tmp_hash;</span><br><span class="line"></span><br><span class="line">    zend_hash_init(&amp;tmp_hash, zend_hash_num_elements(hash), <span class="literal">NULL</span>, <span class="literal">NULL</span>, <span class="number">0</span>);</span><br><span class="line">    zend_hash_internal_pointer_reset_ex(hash, &amp;hpos);</span><br><span class="line">    <span class="keyword">while</span> (zend_hash_get_current_data_ex(hash, (<span class="keyword">void</span> **)&amp;entry, &amp;hpos) == SUCCESS) &#123;</span><br><span class="line">        <span class="keyword">switch</span> (zend_hash_get_current_key_ex(hash, &amp;string_key, &amp;string_key_len, &amp;num_key, <span class="number">0</span>, &amp;hpos)) &#123;</span><br><span class="line">            <span class="keyword">case</span> HASH_KEY_IS_STRING:</span><br><span class="line">                len = string_key_len<span class="number">-1</span>;</span><br><span class="line">                <span class="keyword">if</span> (len &lt; <span class="number">1</span>) &#123;</span><br><span class="line">                    zend_hash_destroy(&amp;tmp_hash);</span><br><span class="line">                    RETURN_FALSE;</span><br><span class="line">                &#125;</span><br><span class="line">                zend_hash_add(&amp;tmp_hash, string_key, string_key_len, entry, <span class="keyword">sizeof</span>(zval*), <span class="literal">NULL</span>);</span><br><span class="line">                <span class="keyword">if</span> (len &gt; maxlen) &#123;</span><br><span class="line">                    maxlen = len;</span><br><span class="line">                &#125;</span><br><span class="line">                <span class="keyword">if</span> (len &lt; minlen) &#123;</span><br><span class="line">                    minlen = len;</span><br><span class="line">                &#125;</span><br><span class="line">                <span class="keyword">break</span>;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">case</span> HASH_KEY_IS_LONG:</span><br><span class="line">                Z_TYPE(ctmp) = IS_LONG;</span><br><span class="line">                Z_LVAL(ctmp) = num_key;</span><br><span class="line"></span><br><span class="line">                convert_to_string(&amp;ctmp);</span><br><span class="line">                len = Z_STRLEN(ctmp);</span><br><span class="line">                zend_hash_add(&amp;tmp_hash, Z_STRVAL(ctmp), len+<span class="number">1</span>, entry, <span class="keyword">sizeof</span>(zval*), <span class="literal">NULL</span>);</span><br><span class="line">                zval_dtor(&amp;ctmp);</span><br><span class="line"></span><br><span class="line">                <span class="keyword">if</span> (len &gt; maxlen) &#123;</span><br><span class="line">                    maxlen = len;</span><br><span class="line">                &#125;</span><br><span class="line">                <span class="keyword">if</span> (len &lt; minlen) &#123;</span><br><span class="line">                    minlen = len;</span><br><span class="line">                &#125;</span><br><span class="line">                <span class="keyword">break</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        zend_hash_move_forward_ex(hash, &amp;hpos);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    key = emalloc(maxlen+<span class="number">1</span>);</span><br><span class="line">    pos = <span class="number">0</span>;</span><br><span class="line">    <span class="comment">// 替换的步骤在这里</span></span><br><span class="line">    <span class="keyword">while</span> (pos &lt; slen) &#123;</span><br><span class="line">        <span class="keyword">if</span> ((pos + maxlen) &gt; slen) &#123;</span><br><span class="line">            maxlen = slen - pos;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        found = <span class="number">0</span>;</span><br><span class="line">     <span class="comment">// key 是每一次需要被替换的字符串</span></span><br><span class="line">        <span class="built_in">memcpy</span>(key, str+pos, maxlen);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (len = maxlen; len &gt;= minlen; len--) &#123;</span><br><span class="line">            key[len] = <span class="number">0</span>;</span><br><span class="line">    <span class="comment">// trans 被赋值为新的字符串</span></span><br><span class="line">            <span class="keyword">if</span> (zend_hash_find(&amp;tmp_hash, key, len+<span class="number">1</span>, (<span class="keyword">void</span>**)&amp;trans) == SUCCESS) &#123;</span><br><span class="line">                <span class="keyword">char</span> *tval;</span><br><span class="line">                <span class="keyword">int</span> tlen;</span><br><span class="line">                zval tmp;</span><br><span class="line"></span><br><span class="line">                <span class="keyword">if</span> (Z_TYPE_PP(trans) != IS_STRING) &#123;</span><br><span class="line">                    tmp = **trans;</span><br><span class="line">                    zval_copy_ctor(&amp;tmp);</span><br><span class="line">                    convert_to_string(&amp;tmp);</span><br><span class="line">                    tval = Z_STRVAL(tmp);</span><br><span class="line">                    tlen = Z_STRLEN(tmp);</span><br><span class="line">                &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                    tval = Z_STRVAL_PP(trans);</span><br><span class="line">                    tlen = Z_STRLEN_PP(trans);</span><br><span class="line">                &#125;</span><br><span class="line">      <span class="comment">// 将 trans 附加到一个新的字符串，最终用来被返回</span></span><br><span class="line">                smart_str_appendl(&amp;result, tval, tlen);</span><br><span class="line">                pos += len;</span><br><span class="line">                found = <span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">                <span class="keyword">if</span> (Z_TYPE_PP(trans) != IS_STRING) &#123;</span><br><span class="line">                    zval_dtor(&amp;tmp);</span><br><span class="line">                &#125;</span><br><span class="line">                <span class="keyword">break</span>;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (! found) &#123;</span><br><span class="line">            smart_str_appendc(&amp;result, str[pos++]);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    efree(key);</span><br><span class="line">    zend_hash_destroy(&amp;tmp_hash);</span><br><span class="line">    smart_str_0(&amp;result);</span><br><span class="line">    RETVAL_STRINGL(result.c, result.len, <span class="number">0</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>从 strtr 的执行过程来看，strtr 也是需要遍历整个 subject 来替换 to -&gt; from，这个也是它在我们的场景中他的效率比较慢的原因。</p>
+<h3 id="方案C-正则替换"><a href="#方案C-正则替换" class="headerlink" title="方案C 正则替换"></a>方案C 正则替换</h3><p>正则替换涉及到正则解析引擎，这个应该也是需要遍历 subject 来替换 to -&gt; from。</p>
+<h3 id="方案D-substr-replace-strops-插入"><a href="#方案D-substr-replace-strops-插入" class="headerlink" title="方案D substr_replace +strops 插入"></a>方案D substr_replace +strops 插入</h3><p>substr_replace 函数签名：</p>
+<blockquote>
+<p><a href="http://php.net/manual/zh/language.pseudo-types.php#language.types.mixed" target="_blank" rel="noopener">mixed</a> <strong>substr_replace</strong> ( <a href="http://php.net/manual/zh/language.pseudo-types.php#language.types.mixed" target="_blank" rel="noopener">mixed</a> <code>$string</code> , <a href="http://php.net/manual/zh/language.pseudo-types.php#language.types.mixed" target="_blank" rel="noopener">mixed</a> <code>$replacement</code> , <a href="http://php.net/manual/zh/language.pseudo-types.php#language.types.mixed" target="_blank" rel="noopener">mixed</a> <code>$start</code> [, <a href="http://php.net/manual/zh/language.pseudo-types.php#language.types.mixed" target="_blank" rel="noopener">mixed</a><code>$length</code> ] )</p>
+<p><strong>substr_replace()</strong> 在字符串 <code>string</code> 的副本中将由 <code>start</code> 和可选的 <code>length</code> 参数限定的子字符串使用 <code>replacement</code>进行替换。</p>
+</blockquote>
+<p>strpos 函数签名：</p>
+<blockquote>
+<h3 id="说明-¶-1"><a href="#说明-¶-1" class="headerlink" title="说明 ¶"></a>说明<a href="http://php.net/manual/zh/function.strpos.php#refsect1-function.strpos-description" target="_blank" rel="noopener"> ¶</a></h3><p><a href="http://php.net/manual/zh/language.pseudo-types.php#language.types.mixed" target="_blank" rel="noopener">mixed</a> <strong>strpos</strong> ( string <code>$haystack</code> , <a href="http://php.net/manual/zh/language.pseudo-types.php#language.types.mixed" target="_blank" rel="noopener">mixed</a> <code>$needle</code> [, int <code>$offset</code> = 0 ] )</p>
+<p>返回 <code>needle</code> 在 <code>haystack</code> 中首次出现的数字位置。</p>
+</blockquote>
+<p>使用 strpos 定位目标串位置，然后 substr_replace 快速替换。strpos 使用上面提到的 zend_memstr 查找 needle，然后 substr_replace 替换，替换的核心操作就是涉及到内存的分配。这个方法，只是会在目标串中查找一次needle，相比之前的方法，减少了目标串的遍历，由于我们的目标串较大，所以这个方法在相对的比较中，占据了较大的优势.</p>
+<h3 id="总结："><a href="#总结：" class="headerlink" title="总结："></a>总结：</h3><p>在网上搜索字符串替换方案时，会有各种五花八门的解释和分析，但是都缺少原理上的分析和具体场景。在这次调研过程中，我也发现php在一个问题的解决上，有较多的解决办法，看似相同，却又有区别，这个就要对源码较清晰的了解方法的执行过程，才能写出较好性能的程序。</p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2015/11/25/mysql-notes/" rel="next" title="mysql使用中的积累">
+                <i class="fa fa-chevron-left"></i> mysql使用中的积累
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2016/01/11/websocket-with-php/" rel="prev" title="websocket解析和 php 实现">
+                websocket解析和 php 实现 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">liukai93</p>
+              <p class="site-description motion-element" itemprop="description"></p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">7</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                
+                  <span class="site-state-item-count">4</span>
+                  <span class="site-state-item-name">标签</span>
+                
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#场景："><span class="nav-number">1.</span> <span class="nav-text">场景：</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#采取的方案：（机器性能不同，用相对的比较方式对比性能）"><span class="nav-number">2.</span> <span class="nav-text">采取的方案：（机器性能不同，用相对的比较方式对比性能）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#A-方案-str-replace-函数"><span class="nav-number">3.</span> <span class="nav-text">A 方案 str_replace() 函数</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#方案B-strtr-函数"><span class="nav-number">4.</span> <span class="nav-text">方案B strtr() 函数</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#说明-¶"><span class="nav-number">5.</span> <span class="nav-text">说明 ¶</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#返回值-¶"><span class="nav-number">6.</span> <span class="nav-text">返回值 ¶</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#方案C-正则替换"><span class="nav-number">7.</span> <span class="nav-text">方案C 正则替换</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#方案D-substr-replace-strops-插入"><span class="nav-number">8.</span> <span class="nav-text">方案D substr_replace +strops 插入</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#说明-¶-1"><span class="nav-number">9.</span> <span class="nav-text">说明 ¶</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#总结："><span class="nav-number">10.</span> <span class="nav-text">总结：</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2018</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">liukai93</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Muse</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
