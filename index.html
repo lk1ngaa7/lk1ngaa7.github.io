@@ -229,6 +229,126 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://lk1ngaa7.github.io/2018/02/27/event-vs-thread-server-zh-Hans/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="liukai93">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Space of liukai93">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2018/02/27/event-vs-thread-server-zh-Hans/" itemprop="url">event_drive_vs_thread_dirve</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-02-27T18:15:49+08:00">
+                2018-02-27
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>​    Event Dirve 和 Thread Drive 是</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://lk1ngaa7.github.io/2017/02/11/hijack-on-network/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1167,7 +1287,13 @@
 <p>在 order 表中 我们可以添加：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">CONSTRAINT `order_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`) ONDELETE CASCADE ON UPDATE CASCADE</span><br></pre></td></tr></table></figure></p>
 <p>这样，在order 中和就不能添加user 中 user_id 不存在的值了，也就保证了order 和 user的 参照完整性<br><strong> ON DELETE CASCADE ON UPDATE CASCADE </strong>  指的是在主表也就是 user 表的user_id 发生update 或delete 时，子表order 的 user_id 发生update user_id那一行数据 delete，这里还有其他的一些动作。</p>
 <p>使用外键约束，不但简化了业务逻辑 还是一层对数据的完整性的保护 ，你一定不会想在你的order表中出现一条莫名其妙的订单吧，外键约束也在某种程度上保护了数据。在一些对数据一致性要求比较高的场景中，我们可以借助 DB 的外键来避免业务逻辑上的疏漏。</p>
-<h1 id="mysql-索引"><a href="#mysql-索引" class="headerlink" title="mysql-索引"></a>mysql-索引</h1>
+<h1 id="mysql-索引"><a href="#mysql-索引" class="headerlink" title="mysql-索引"></a>mysql-索引</h1><h3 id="索引的目的"><a href="#索引的目的" class="headerlink" title="索引的目的"></a>索引的目的</h3><p>​    在我个人的理解中，mysql 的索引在实际应用中是一种通过空间换取查询时间的方式，它是通过对选定列在持久化存储上建立一个单独的专门用来查询的数据结构来达到提升查询速度的目的。一般这个数据结构是 BTree，在 where 语句中对已经建立好索引的列查询时，mysql 的查询引擎会在索引上进行数据的查询操作，而不是在原有的列上扫描，从而提升了查询的速度。</p>
+<h3 id="索引的实现"><a href="#索引的实现" class="headerlink" title="索引的实现"></a>索引的实现</h3><p>​    索引解决的是查找的问题，一些数据结构如有序list ，二叉查找树，红黑树，BTree。mysql 使用了 Btree 作为索引的数据结构。在初始化索引时，调用引擎新建索引，每当该列有新的数据插入时，再更新索引，所以由此得出，索引比较适合一些读多写少的场景中，大量的写会对索引的更新产生压力。    </p>
+<h3 id="索引的使用方式"><a href="#索引的使用方式" class="headerlink" title="索引的使用方式"></a>索引的使用方式</h3><p>​    流行的 Mysql 引擎有 MyISAM和InnoDB数据存储引擎，笔者主要对 InnoDB  有部分使用经验，对索引的建立，主要遵守最左前缀匹配规则即可，具体解释就是:</p>
+<p>​    有一个表(stu),有三列 : px , uid  , score ，在业务流程中可能会对 uid 和 score 同时使用where 查询时，可以考虑建立一个联合索引，索引包含两列 &lt;uid,score&gt;  ，这个联合索引有最左匹配的性质，在以下两条 sql 中都可以起到加速查询的作用:<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">SELECT uid , score FROM stu WHERE  score  = 123 AND uid = 123 ; #mysql 会自己调整 where 的条件以达到使用索引的目的</span><br><span class="line">SELECT uid , score FROM stu WHERE uid=123;</span><br></pre></td></tr></table></figure></p>
+<p>但是下面这条语句就无法使用索引<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">SELECT uid , score FROM stu WHERE score=123;</span><br></pre></td></tr></table></figure></p>
+<p>需要专门新建一个 <score> 的索引</score></p>
+
           
         
       
@@ -1486,7 +1612,7 @@
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">7</span>
+                  <span class="site-state-item-count">8</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -1499,7 +1625,7 @@
               
               <div class="site-state-item site-state-tags">
                 
-                  <span class="site-state-item-count">4</span>
+                  <span class="site-state-item-count">5</span>
                   <span class="site-state-item-name">标签</span>
                 
               </div>
@@ -1522,18 +1648,6 @@
                     <a href="https://twitter.com/lk1ngaa7" target="_blank" title="Twitter">
                       
                         <i class="fa fa-fw fa-globe"></i>Twitter</a>
-                  </span>
-                
-                  <span class="links-of-author-item">
-                    <a href="http://fanfou.com/wslrt" target="_blank" title="Weibo">
-                      
-                        <i class="fa fa-fw fa-globe"></i>Weibo</a>
-                  </span>
-                
-                  <span class="links-of-author-item">
-                    <a href="your-douban-url" target="_blank" title="DouBan">
-                      
-                        <i class="fa fa-fw fa-globe"></i>DouBan</a>
                   </span>
                 
                   <span class="links-of-author-item">
