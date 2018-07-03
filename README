@@ -1,0 +1,4 @@
+## hexo generate 后的 public 文件夹的内容放置在这里
+### thirdparty-static 是一个用来寄存第三方静态文件的文件夹(当做cdn来用,哈哈哈)
+### hexo 文件夹存放了hexo的配置和md形式的post文件
+### deploy.sh 是放置在 hexo 程序文件夹下面，用来部署静态文件的脚本 
